@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Ottawa CACC Geography Prep Tool</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #1a1e24; color: #e1e6ed; }
+        
+        h1 { font-size: 1rem; color: #58a6ff; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; }
+        .subhead { font-size: 0.7rem; color: #8b949e; }
+        
+        .card { 
+            background: #22272e; 
+            border: 1px solid #373e47; 
+            border-radius: 10px; 
+            padding: 8px 10px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
+        
+        .btn-primary { 
+            background: #238636; 
+            color: white; 
+            border: none; 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            width: 100%; 
+            font-size: 0.88rem; 
+            margin-top: 4px;
+            transition: background 0.15s ease;
+        }
+        .btn-primary:hover { background: #2ea043; }
+        
+        .btn-confirm { 
+            background: #1f6beb; 
+            color: white; 
+            border: none; 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            width: 100%; 
+            font-size: 0.88rem; 
+            margin-top: 4px; 
+            display: none;
+            transition: background 0.15s ease;
+        }
+        .btn-confirm:hover { background: #388bfd; }
+
+        .btn-hint { 
+            background: rgba(210, 153, 34, 0.15); 
+            color: #d29922; 
+            border: 1px solid rgba(210, 153, 34, 0.4); 
+            padding: 4px 8px; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            font-size: 0.72rem; 
+            cursor: pointer; 
+            margin-top: 4px; 
+            display: inline-block; 
+        }
+        .btn-hint:hover { background: rgba(210, 153, 34, 0.25); }
+
+        .btn-region { 
+            background: #2d333b; 
+            color: #c9d1d9; 
+            border: 1px solid #444c56; 
+            padding: 5px 4px; 
+            border-radius: 6px; 
+            font-size: 0.7rem; 
+            cursor: pointer; 
+            flex: 1; 
+            font-weight: 600; 
+            text-align: center;
+            transition: all 0.15s ease;
+        }
+        .btn-region:hover { background: #383f4a; color: #58a6ff; border-color: #58a6ff; }
+
+        .prompt-text { font-size: 0.92rem; font-weight: 600; color: #f0f6fc; margin-bottom: 2px; }
+        .hint { color: #8b949e; font-size: 0.78rem; line-height: 1.25; }
+        
+        .feedback { margin-top: 6px; padding: 6px 8px; border-radius: 8px; display: none; font-size: 0.8rem; }
+        .feedback.success { background: rgba(46, 160, 67, 0.15); border: 1px solid #2ea043; color: #56d364; }
+        .feedback.warning { background: rgba(210, 153, 34, 0.15); border: 1px solid #d29922; color: #e3b341; }
+        .feedback.error { background: rgba(248, 81, 73, 0.15); border: 1px solid #f85149; color: #f85149; }
+        
+        select, input[type="text"] { 
+            width: 100%; 
+            padding: 6px 8px; 
+            background: #1c2128; 
+            color: #f0f6fc; 
+            border: 1px solid #444c56; 
+            border-radius: 7px; 
+            margin-top: 3px; 
+            font-size: 0.82rem; 
+            outline: none;
+        }
+        select:focus, input[type="text"]:focus { border-color: #58a6ff; }
+        
+        .compact-row { display: flex; justify-content: space-between; align-items: center; }
+        .region-row { display: flex; gap: 4px; margin-top: 4px; }
+        .mc-grid { display: grid; grid-template-columns: 1fr; gap: 5px; margin-top: 6px; }
+        .mc-option { background: #1c2128; border: 1px solid #444c56; color: #e1e6ed; padding: 6px 8px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; text-align: left; }
+        .mc-option:hover { border-color: #58a6ff; background: #22272e; }
+
+        .blank-circle-list { margin-top: 6px; display: flex; flex-direction: column; gap: 5px; max-height: 220px; overflow-y: auto; padding-right: 2px; }
+        .blank-circle-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: #1c2128; padding: 5px 8px; border-radius: 6px; border: 1px solid #444c56; font-size: 0.8rem; }
+
+        /* End-of-Quiz Summary Modal */
+        #summary-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 2000; justify-content: center; align-items: center; padding: 15px; }
+        .modal-card { background: #1c2128; border: 1px solid #444c56; border-radius: 12px; padding: 16px; width: 100%; max-width: 400px; position: relative; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .modal-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: #8b949e; font-size: 1.2rem; font-weight: bold; cursor: pointer; }
+        .modal-close:hover { color: #f0f6fc; }
+        .review-list { text-align: left; margin: 10px 0; overflow-y: auto; flex: 1; padding-right: 4px; }
+        .review-item { background: #22272e; border-left: 3px solid #f85149; padding: 6px 8px; margin-bottom: 6px; border-radius: 6px; font-size: 0.78rem; }
+    </style>
+</head>
+<body>
+
+    <div style="display: flex; height: 100vh; width: 100vw; overflow: hidden; background: #1a1e24;">
+        <!-- Left Control Panel (Slim & Modern 300px) -->
+        <aside style="width: 300px; background: #161b22; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid #30363d; overflow-y: auto; z-index: 1000; flex-shrink: 0;">
+            <div class="compact-row">
+                <div>
+                    <h1>CACC Geo Trainer</h1>
+                    <p class="subhead">Ottawa • PR • SDG</p>
+                </div>
+                <div id="score-card" style="font-size: 0.78rem; background: #22272e; padding: 3px 6px; border-radius: 6px; border: 1px solid #373e47; display:none; font-weight: 600;">
+                    Score: <span id="score" style="color: #56d364;">0</span>%
+                </div>
+            </div>
+
+            <div class="card" style="padding: 6px 8px;">
+                <select id="mode-select" onchange="toggleModeUI()" style="margin-top: 0; font-size: 0.78rem;">
+                    <option value="eval">Mode: Full Eval Practice</option>
+                    <option value="study" selected>Mode: Study & Learn</option>
+                    <option value="mc">Mode: Multiple Choice Drills</option>
+                    <option value="blanks">Mode: Full Map Matching</option>
+                </select>
+                <div style="display: flex; gap: 4px; margin-top: 4px;">
+                    <select id="category-select" style="margin-top: 0; font-size: 0.78rem;">
+                        <option value="all">All Categories</option>
+                        <option value="landmarks">Landmarks, Hospitals & Airstrips</option>
+                        <option value="roadways">Major Corridors</option>
+                        <option value="neighborhoods">Neighborhoods</option>
+                        <option value="rural_towns">Rural Towns</option>
+                    </select>
+                    <select id="length-select" style="width: 38%; margin-top: 0; font-size: 0.78rem;">
+                        <option value="5" selected>5 Qs</option>
+                        <option value="10">10 Qs</option>
+                        <option value="20">20 Qs</option>
+                        <option value="0">Endless</option>
+                    </select>
+                </div>
+                <div class="region-row">
+                    <button class="btn-region" onclick="zoomRegion('ottawa')">Ottawa</button>
+                    <button class="btn-region" onclick="zoomRegion('pr')">PR</button>
+                    <button class="btn-region" onclick="zoomRegion('sdg')">SDG</button>
+                    <button class="btn-region" onclick="zoomRegion('all')">All</button>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 8px 10px; flex: 1; display: flex; flex-direction: column;">
+                <div id="target-prompt" class="prompt-text">Click "Start Quiz" to begin</div>
+                <div id="target-detail" class="hint">Tap on the map below to place your guess.</div>
+                
+                <div id="text-input-container" style="display:none; margin-top: 6px;">
+                    <label style="font-size: 0.7rem; color: #8b949e;">Closest Intersection:</label>
+                    <input type="text" id="user-intersection-input" placeholder="e.g. Bank St & Hunt Club Rd" style="padding: 5px 7px;" />
+                    <button id="hint-btn" class="btn-hint" onclick="revealHint()">I'm Stuck (Hint)</button>
+                    <div id="hint-display" style="font-size: 0.75rem; color: #d29922; margin-top: 2px; font-family: monospace;"></div>
+                </div>
+
+                <div id="mc-container" class="mc-grid" style="display:none;"></div>
+                <div id="blanks-container" class="blank-circle-list" style="display:none;"></div>
+
+                <div style="margin-top: auto; padding-top: 6px;">
+                    <button id="action-btn" class="btn-primary" onclick="handleActionButton()">Start Quiz</button>
+                    <button id="confirm-btn" class="btn-confirm" onclick="confirmAnswer()">Confirm Answer</button>
+                </div>
+                
+                <div id="feedback" class="feedback"></div>
+            </div>
+        </aside>
+
+        <!-- Right Map Area (Maximized View) -->
+        <main style="flex: 1; height: 100%; position: relative;">
+            <div id="map" style="width: 100%; height: 100%;"></div>
+        </main>
+    </div>
+
+    <!-- Summary Modal -->
+    <div id="summary-modal">
+        <div class="modal-card">
+            <button class="modal-close" onclick="closeSummaryModal()">✕</button>
+            <h2 style="color: #58a6ff; font-size: 1.1rem; margin-bottom: 2px;">Evaluation Results</h2>
+            <div style="font-size: 1.8rem; font-weight: bold; color: #f0f6fc;" id="final-percentage">0%</div>
+            <div id="final-subtext" style="font-size: 0.75rem; color: #8b949e; margin-bottom: 6px;">Areas to Review & Study:</div>
+            
+            <div class="review-list" id="review-list-container"></div>
+
+            <button class="btn-primary" onclick="closeSummaryModal()">Start New Run</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', { zoomControl: false }).setView([45.35, -75.30], 9);
+        L.control.zoom({ position: 'topright' }).addTo(map);
+        
+        // CARTO Light No-Labels Tile Layer
+        L.tileLayer('https://a.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png?key=cb1_51mh_1_8eec5cff76754acbf80a4eca', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap contributors © CARTO'
+        }).addTo(map);
+
+        const geoData = [
+            // LANDMARKS, HOSPITALS & REGIONAL AIRSTRIPS (SDG & PR ADDED)
+            { category: "landmarks", name: "The Ottawa Hospital - Civic Campus", intersection: "Carling Ave & Parkdale Ave", lat: 45.392894, lng: -75.720928 },
+            { category: "landmarks", name: "The Ottawa Hospital - General Campus", intersection: "Smyth Rd & Ring Rd", lat: 45.401765, lng: -75.647544 },
+            { category: "landmarks", name: "CHEO (Children's Hospital)", intersection: "Smyth Rd & Ring Rd", lat: 45.4013505, lng: -75.651126 },
+            { category: "landmarks", name: "Queensway Carleton Hospital", intersection: "Baseline Rd & Robertson Rd", lat: 45.334958, lng: -75.807788 },
+            { category: "landmarks", name: "Ottawa International Airport (YOW)", intersection: "Airport Pkwy & Uplands Dr", lat: 45.3225, lng: -75.6692 },
+            { category: "landmarks", name: "National Gallery of Canada", intersection: "Sussex Dr & St. Patrick St", lat: 45.429684, lng: -75.698920 },
+            { category: "landmarks", name: "Canada Aviation and Space Museum", intersection: "Aviation Pkwy & Sir George-Étienne Cartier Pkwy", lat: 45.4593, lng: -75.6420 },
+            { category: "landmarks", name: "Canadian Science and Technology Museum", intersection: "St. Laurent Blvd & Lancaster Rd", lat: 45.4034, lng: -75.6189 },
+            { category: "landmarks", name: "Canadian War Museum", intersection: "Vimy Pl & Sir John A. Macdonald Pkwy", lat: 45.417300, lng: -75.716802 },
+            { category: "landmarks", name: "Canadian Museum of Nature", intersection: "McLeod St & Metcalfe St", lat: 45.412857, lng: -75.688682 },
+            { category: "landmarks", name: "Parliament Hill", intersection: "Wellington St & Metcalfe St", lat: 45.4236, lng: -75.7009 },
+            { category: "landmarks", name: "Lansdowne Park / TD Place", intersection: "Bank St & Exhibition Way", lat: 45.3992, lng: -75.6836 },
+            { category: "landmarks", name: "Carleton University", intersection: "Bronson Ave & University Rd", lat: 45.3850, lng: -75.6946 },
+            { category: "landmarks", name: "University of Ottawa", intersection: "Laurier Ave E & King Edward Ave", lat: 45.422841, lng: -75.683413 },
+            { category: "landmarks", name: "CF Rideau Centre", intersection: "Rideau St & Nicholas St", lat: 45.4253, lng: -75.6917 },
+            { category: "landmarks", name: "Bayshore Shopping Centre", intersection: "Richmond Rd & Holly Acres Rd", lat: 45.3475, lng: -75.8070 },
+            
+            // SDG & PR SMALL AIRPORTS & AIRSTRIPS
+            { category: "landmarks", name: "Pendleton Airport (CNF3)", intersection: "County Road 17 & Concession Rd 8", lat: 45.5090, lng: -75.0510 },
+            { category: "landmarks", name: "Alexandria Airport (CNV3)", intersection: "County Rd 34 & Concession Rd 3", lat: 45.2890, lng: -74.6540 },
+            { category: "landmarks", name: "Casselman / Bourget Airpark", intersection: "County Rd 8 & County Rd 2", lat: 45.3520, lng: -75.1480 },
+            { category: "landmarks", name: "Maxville / Bourbonnais Airfield", intersection: "County Rd 20 & 4th Line Rd", lat: 45.2750, lng: -74.8510 },
+            { category: "landmarks", name: "Cornwall Regional Airport (CYCC)", intersection: "County Rd 2 & Airport Rd", lat: 45.0930, lng: -74.6180 },
+            { category: "landmarks", name: "Carp Airport (YRP)", intersection: "Carp Rd & 3rd Line Rd", lat: 45.3190, lng: -76.0310 },
+
+            // NEIGHBORHOODS & COMMUNITIES
+            { category: "neighborhoods", name: "Orléans", intersection: "Innes Rd & Place d'Orléans Dr", lat: 45.4746, lng: -75.5160, polygon: [[45.41892, -75.47477], [45.42308, -75.52447], [45.44101, -75.54112], [45.4816, -75.56196], [45.49882, -75.5204], [45.50922, -75.49123], [45.51683, -75.46503], [45.4961, -75.44974], [45.45167, -75.42451], [45.42192, -75.46576]] },
+            
+            { category: "neighborhoods", name: "Kanata", intersection: "Terry Fox Dr & Hazeldean Rd", lat: 45.3088, lng: -75.8986, polygon: [[45.26939, -75.86077], [45.28919, -75.94419], [45.29527, -75.9514], [45.36536, -75.95723], [45.36946, -75.95086], [45.37185, -75.93843], [45.36569, -75.92234], [45.35205, -75.90495], [45.30536, -75.85184], [45.27753, -75.83522], [45.27087, -75.85137], [45.26975, -75.8578]] },
+            
+            { category: "neighborhoods", name: "Stittsville", intersection: "Stittsville Main St & Hazeldean Rd", lat: 45.2580, lng: -75.9220, polygon: [[45.23892, -75.91622], [45.26184, -75.94551], [45.26849, -75.95246], [45.28097, -75.95697], [45.29756, -75.93108], [45.30138, -75.92244], [45.28688, -75.88939], [45.27438, -75.86907], [45.25243, -75.89158], [45.23963, -75.91205]] },
+            
+            { category: "neighborhoods", name: "Barrhaven", intersection: "Strandherd Dr & Greenbank Rd", lat: 45.2733, lng: -75.7538, polygon: [[45.22679, -75.74862], [45.25025, -75.78208], [45.28109, -75.8046], [45.28444, -75.80605], [45.29067, -75.80265], [45.2931, -75.79809], [45.29604, -75.78984], [45.29847, -75.73131], [45.27009, -75.70233], [45.24902, -75.70561], [45.24096, -75.71241], [45.23463, -75.72841]] },
+            
+            { category: "neighborhoods", name: "Nepean", intersection: "Baseline Rd & Woodroffe Ave", lat: 45.3450, lng: -75.7550, polygon: [[45.32211, -75.77689], [45.33154, -75.80955], [45.33954, -75.81545], [45.34169, -75.8157], [45.34368, -75.8142], [45.35946, -75.79535], [45.36475, -75.78302], [45.37157, -75.71635], [45.34657, -75.70118], [45.33341, -75.72701], [45.32276, -75.76885]] },
+            
+            { category: "neighborhoods", name: "Gloucester / South Keys", intersection: "Hunt Club Rd & Bank St", lat: 45.3540, lng: -75.6540, polygon: [[45.33028, -75.67502], [45.33409, -75.70061], [45.3391, -75.70388], [45.3513, -75.70394], [45.37899, -75.66091], [45.38373, -75.63036], [45.37846, -75.59973], [45.37405, -75.59727], [45.34784, -75.60938], [45.33399, -75.64386]] },
+            
+            { category: "neighborhoods", name: "The Glebe", intersection: "Bank St & Highway 417", lat: 45.4072, lng: -75.6914, polygon: [[45.40657, -75.68151], [45.40109, -75.67898], [45.39762, -75.68053], [45.39656, -75.68252], [45.39585, -75.68824], [45.39402, -75.69179], [45.39399, -75.69769], [45.39154, -75.70077], [45.39373, -75.70605], [45.39699, -75.70903], [45.39961, -75.70309], [45.40391, -75.70568], [45.4124, -75.68337], [45.40865, -75.68156]] },
+            
+            { category: "neighborhoods", name: "Westboro", intersection: "Richmond Rd & Churchill Ave N", lat: 45.3920, lng: -75.7540, polygon: [[45.38059, -75.74702], [45.38723, -75.76259], [45.39588, -75.77251], [45.40986, -75.75964], [45.39732, -75.74221], [45.38894, -75.73469], [45.38338, -75.74045]] },
+            
+            { category: "neighborhoods", name: "Hintonburg", intersection: "Wellington St W & Parkdale Ave", lat: 45.4020, lng: -75.7270, polygon: [[45.41166, -75.72528], [45.40257, -75.71265], [45.39838, -75.72536], [45.39568, -75.72951], [45.4038, -75.73439], [45.40489, -75.7316], [45.41249, -75.73618], [45.415, -75.73908], [45.41691, -75.72872], [45.41278, -75.72601]] },
+            
+            { category: "neighborhoods", name: "Centretown", intersection: "Bank St & Somerset St W", lat: 45.4150, lng: -75.6940, polygon: [[45.42524, -75.70441], [45.42975, -75.70378], [45.42494, -75.69532], [45.41886, -75.68071], [45.41779, -75.68051], [45.4124, -75.68337], [45.40489, -75.70195], [45.41635, -75.70861], [45.41297, -75.7127], [45.41633, -75.71468], [45.41881, -75.71156], [45.42043, -75.71231], [45.42308, -75.70958], [45.42466, -75.70469]] },
+            
+            { category: "neighborhoods", name: "Sandy Hill", intersection: "Laurier Ave E & Nelson St", lat: 45.4240, lng: -75.6780, polygon: [[45.41939, -75.66437], [45.41697, -75.66282], [45.4163, -75.67372], [45.42476, -75.69488], [45.43356, -75.67257], [45.43327, -75.67136], [45.42735, -75.67106], [45.42121, -75.6672]] },
+            
+            { category: "neighborhoods", name: "ByWard Market", intersection: "George St & William St", lat: 45.4277, lng: -75.6924, polygon: [[45.44052, -75.69703], [45.43836, -75.69318], [45.4374, -75.69378], [45.43664, -75.69201], [45.4288, -75.68563], [45.42476, -75.69488], [45.42975, -75.70378], [45.43759, -75.70257], [45.44426, -75.69959]] },
+            
+            { category: "neighborhoods", name: "Vanier", intersection: "Montreal Rd & Vanier Pkwy", lat: 45.4385, lng: -75.6552, polygon: [[45.42864, -75.67113], [45.43756, -75.67852], [45.44545, -75.66971], [45.44537, -75.65459], [45.43998, -75.65038], [45.4302, -75.64912], [45.42879, -75.66809]] },
+            
+            
+            { category: "neighborhoods", name: "Alta Vista", intersection: "Alta Vista Dr & Smyth Rd", lat: 45.3950, lng: -75.6580, polygon: [[45.39901, -75.66852], [45.3995, -75.64666], [45.39538, -75.64834], [45.39172, -75.64646], [45.39172, -75.64911], [45.38831, -75.6525], [45.38254, -75.65176], [45.38098, -75.65551], [45.37942, -75.65537], [45.37899, -75.66091], [45.37507, -75.66081], [45.37272, -75.66449], [45.38032, -75.6684], [45.38646, -75.6743], [45.39354, -75.66916], [45.39791, -75.67242], [45.39961, -75.67084], [45.39916, -75.66908]] },
+            
+            { category: "neighborhoods", name: "Findlay Creek", intersection: "Bank St & Findlay Creek Dr", lat: 45.3180, lng: -75.6020, polygon: [[45.33857, -75.57706], [45.31674, -75.56498], [45.31389, -75.56908], [45.30301, -75.59462], [45.29978, -75.59847], [45.29652, -75.61257], [45.29791, -75.62428], [45.29384, -75.6361], [45.3085, -75.64467], [45.31032, -75.64697], [45.3283, -75.60498], [45.33527, -75.60911], [45.33784, -75.6064], [45.33635, -75.60311], [45.33105, -75.59968], [45.33368, -75.59253], [45.33361, -75.58606], [45.34004, -75.57951], [45.34045, -75.57814], [45.33892, -75.57725]] },
+            
+            { category: "neighborhoods", name: "Bells Corners", intersection: "Robertson Rd & Moodie Dr", lat: 45.3280, lng: -75.8280, polygon: [[45.30944, -75.82606], [45.31608, -75.84657], [45.32684, -75.83593], [45.3286, -75.83287], [45.33154, -75.80955], [45.32521, -75.80619], [45.32234, -75.80579], [45.3146, -75.81265]] },
+            
+            { category: "neighborhoods", name: "Britannia", intersection: "Richmond Rd & Carling Ave", lat: 45.3620, lng: -75.7820, polygon: [[45.35028, -75.81618], [45.3727, -75.81783], [45.38119, -75.7916], [45.37433, -75.78511], [45.362, -75.78], [45.36, -75.782]] },
+            
+            { category: "neighborhoods", name: "Riverside South", intersection: "River Rd & Limebank Rd", lat: 45.2950, lng: -75.6700, polygon: [[45.29384, -75.6361], [45.27668, -75.62607], [45.26328, -75.6579], [45.26748, -75.66009], [45.26278, -75.67106], [45.26111, -75.66994], [45.25129, -75.69337], [45.25233, -75.69565], [45.2496, -75.70216], [45.25639, -75.70544], [45.26182, -75.70626], [45.2677, -75.70578], [45.27009, -75.70233], [45.272, -75.70144], [45.27627, -75.70194], [45.28348, -75.69779], [45.28716, -75.697], [45.29369, -75.69951], [45.29964, -75.6985], [45.30039, -75.69475], [45.29555, -75.69498], [45.29148, -75.69368], [45.31032, -75.64697], [45.3085, -75.64467]] },
+            
+            { category: "neighborhoods", name: "Blackburn Hamlet", intersection: "Innes Rd & Bearbrook Rd", lat: 45.4290, lng: -75.5850, polygon: [[45.4258, -75.57499], [45.427, -75.585], [45.429, -75.587], [45.44466, -75.57702], [45.44531, -75.57567], [45.44101, -75.54112], [45.43621, -75.5427], [45.42586, -75.56666]] },
+            
+            { category: "neighborhoods", name: "Rockliffe", intersection: "Sachem Rd & Acacia Ave", lat: 45.4450, lng: -75.6650, polygon: [[45.443, -75.665], [45.44602, -75.68935], [45.44949, -75.69607], [45.45582, -75.68889], [45.45914, -75.68318], [45.46337, -75.66485], [45.45592, -75.66108], [45.445, -75.663]] },
+            
+            { category: "neighborhoods", name: "Manotick", intersection: "Mains St & Bridge St", lat: 45.2330, lng: -75.6830, polygon: [[45.22791, -75.628], [45.21608, -75.65959], [45.20299, -75.63881], [45.188, -75.62971], [45.188, -75.67843], [45.204, -75.69814], [45.1935, -75.72354], [45.21158, -75.738], [45.23091, -75.738], [45.24096, -75.71241], [45.247, -75.71134], [45.24902, -75.70561], [45.25635, -75.70565], [45.25618, -75.70465], [45.2496, -75.70216], [45.25233, -75.69565], [45.25129, -75.69337], [45.26111, -75.66994], [45.26278, -75.67106], [45.26748, -75.66009], [45.26328, -75.6579], [45.26822, -75.64553], [45.25158, -75.63542], [45.25466, -75.628]] },
+            
+            { category: "neighborhoods", name: "Richmond", intersection: "Perth St & McBean St", lat: 45.1880, lng: -75.8390, polygon: [[45.233, -75.894], [45.233, -75.784], [45.16871, -75.784], [45.16578, -75.79173], [45.15373, -75.81328], [45.16576, -75.83849], [45.16564, -75.84033], [45.1637, -75.84141], [45.16171, -75.83935], [45.15823, -75.84008], [45.15705, -75.84617], [45.15578, -75.84699], [45.15508, -75.84604], [45.15469, -75.84712], [45.15562, -75.85141], [45.15487, -75.85538], [45.15565, -75.87323], [45.1639, -75.88645], [45.17007, -75.894]] },
+            
+            { category: "neighborhoods", name: "Carp", intersection: "Carp Rd & Donald B. Munro Dr", lat: 45.3420, lng: -76.0350, polygon: [[45.387, -76.09], [45.387, -76.02371], [45.35885, -75.9852], [45.36212, -75.98], [45.297, -75.98], [45.297, -76.02384], [45.30977, -76.04203], [45.31927, -76.09]] },
+            
+            { category: "neighborhoods", name: "Dunrobin", intersection: "Dunrobin Rd & Thomas A. Dolan Pkwy", lat: 45.4520, lng: -76.0520, polygon: [[45.407, -75.997], [45.407, -76.07503], [45.4307, -76.107], [45.44161, -76.107], [45.46249, -76.07509], [45.47398, -76.06272], [45.497, -76.05958], [45.497, -76.04124], [45.48909, -76.02324], [45.4823, -75.997]] },
+            
+            { category: "neighborhoods", name: "Constance Bay", intersection: "Bayview Dr & Dunrobin Rd", lat: 45.4850, lng: -76.0920, polygon: [[45.46249, -76.07509], [45.47457, -76.09131], [45.51719, -76.12291], [45.51621, -76.10561], [45.51385, -76.08988], [45.50327, -76.05864], [45.47398, -76.06272]] },
+            
+            { category: "neighborhoods", name: "Fitzroy Harbour", intersection: "WO Connell St & Carp Rd", lat: 45.4500, lng: -76.2100, polygon: [[45.495, -76.155], [45.42069, -76.155], [45.43666, -76.17554], [45.43302, -76.19392], [45.44924, -76.21506], [45.42908, -76.24776], [45.42708, -76.25326], [45.42662, -76.25232], [45.42445, -76.25359], [45.42089, -76.24995], [45.41928, -76.25303], [45.41694, -76.25389], [45.40877, -76.25101], [45.405, -76.2517], [45.405, -76.265], [45.46779, -76.265], [45.46861, -76.24508], [45.4712, -76.24021], [45.47525, -76.23852], [45.495, -76.23547]] },
+            
+            { category: "neighborhoods", name: "Kinburn", intersection: "Kinburn Side Rd & Carp Rd", lat: 45.3900, lng: -76.1800, polygon: [[45.345, -76.235], [45.435, -76.235], [45.435, -76.1965], [45.43302, -76.19392], [45.435, -76.18371], [45.435, -76.17341], [45.40214, -76.1323], [45.39564, -76.125], [45.35496, -76.125], [45.34933, -76.13422], [45.345, -76.12911]] },
+            
+            { category: "neighborhoods", name: "North Gower", intersection: "Fourth Line Rd & Roger Stevens Dr", lat: 45.1350, lng: -75.7650, polygon: [[45.09815, -75.71], [45.133, -75.765], [45.16578, -75.79173], [45.18, -75.75627], [45.18, -75.71]] },
+            
+            { category: "neighborhoods", name: "Kars", intersection: "Kars St & Rideau Valley Dr", lat: 45.1580, lng: -75.6550, polygon: [[45.12787, -75.63249], [45.12598, -75.6288], [45.11979, -75.62732], [45.113, -75.62172], [45.113, -75.71], [45.19911, -75.71], [45.203, -75.70056], [45.203, -75.69694], [45.17738, -75.66407], [45.15858, -75.65177], [45.16251, -75.64104], [45.1619, -75.63377], [45.15451, -75.6418], [45.15147, -75.6434], [45.14269, -75.64363], [45.13984, -75.64189], [45.13467, -75.63598], [45.12941, -75.63569]] },
+            
+            { category: "neighborhoods", name: "Osgoode", intersection: "Main St & Osgoode Main St", lat: 45.1250, lng: -75.5780, polygon: [[45.11538, -75.523], [45.08435, -75.59498], [45.10522, -75.61303], [45.12598, -75.6288], [45.12812, -75.633], [45.16183, -75.633], [45.16161, -75.63046], [45.1675, -75.62356], [45.17, -75.62265], [45.17, -75.523]] },
+            
+            { category: "neighborhoods", name: "Metcalfe", intersection: "Victoria St & 8th Line Rd", lat: 45.2280, lng: -75.4650, polygon: [[45.183, -75.41], [45.183, -75.47324], [45.22662, -75.49537], [45.21721, -75.51748], [45.22158, -75.52], [45.273, -75.52], [45.273, -75.41]] },
+            
+            { category: "neighborhoods", name: "Greely", intersection: "Tudor Glen & Bank St", lat: 45.2550, lng: -75.5750, polygon: [[45.3, -75.58183], [45.28015, -75.56992], [45.28555, -75.55686], [45.22158, -75.52], [45.21599, -75.52], [45.21, -75.53369], [45.21, -75.59729], [45.25618, -75.62437], [45.25383, -75.63], [45.27497, -75.63], [45.27668, -75.62607], [45.2834, -75.63], [45.29635, -75.63], [45.29799, -75.62245], [45.29656, -75.61208], [45.3, -75.598]] },
+            
+            { category: "neighborhoods", name: "Vernon", intersection: "Bank St & 8th Line Rd", lat: 45.1780, lng: -75.4850, polygon: [[45.14531, -75.44153], [45.133, -75.47645], [45.133, -75.54], [45.20735, -75.54], [45.223, -75.50387], [45.223, -75.49354], [45.16535, -75.46428], [45.16707, -75.45739], [45.16373, -75.45474], [45.15426, -75.45202], [45.14781, -75.44671], [45.14532, -75.44148]] },
+            
+            { category: "neighborhoods", name: "Cumberland", intersection: "Dunning Rd & Regional Rd 174", lat: 45.5150, lng: -75.3950, polygon: [[45.47153, -75.34], [45.47, -75.34455], [45.47, -75.43489], [45.4962, -75.45], [45.52046, -75.45], [45.52111, -75.44541], [45.51989, -75.42356], [45.52067, -75.41829], [45.52307, -75.41535], [45.52424, -75.41143], [45.52343, -75.40665], [45.52418, -75.39104], [45.52722, -75.38336], [45.5368, -75.34528], [45.53698, -75.34251], [45.53255, -75.34]] },
+            
+            { category: "neighborhoods", name: "Sarsfield", intersection: "Dunning Rd & Milton Rd", lat: 45.4380, lng: -75.3950, polygon: [[45.41369, -75.34], [45.40822, -75.35806], [45.40873, -75.36135], [45.41236, -75.36371], [45.41045, -75.37379], [45.40206, -75.39726], [45.39986, -75.43463], [45.4146, -75.44245], [45.41212, -75.45], [45.44195, -75.45], [45.44262, -75.44843], [45.44501, -75.44923], [45.45167, -75.42451], [45.44892, -75.42273], [45.45096, -75.41564], [45.45245, -75.4144], [45.45618, -75.39872], [45.46159, -75.38336], [45.46021, -75.3816], [45.46734, -75.3584], [45.46786, -75.35235], [45.47153, -75.34]] },
+            
+            { category: "neighborhoods", name: "Vars", intersection: "Vars St & Regional Rd 8", lat: 45.3780, lng: -75.3750, polygon: [[45.34114, -75.32], [45.333, -75.34928], [45.333, -75.35883], [45.37182, -75.37929], [45.36252, -75.41546], [45.39084, -75.43], [45.40013, -75.43], [45.40206, -75.39726], [45.41045, -75.37379], [45.41236, -75.36371], [45.40873, -75.36135], [45.40822, -75.35806], [45.41868, -75.32266], [45.4181, -75.32]] },
+            
+            { category: "neighborhoods", name: "Navan", intersection: "Trim Rd & Navan Rd", lat: 45.4350, lng: -75.4750, polygon: [[45.39986, -75.43463], [45.40938, -75.45832], [45.41892, -75.47477], [45.435, -75.477], [45.437, -75.475], [45.45167, -75.42451], [45.44971, -75.42], [45.40072, -75.42]] },
+            
+            { category: "neighborhoods", name: "Munster", intersection: "Munster Rd & Bleeks Rd", lat: 45.2150, lng: -75.8850, polygon: [[45.17, -75.94], [45.20738, -75.94], [45.217, -75.885], [45.215, -75.883], [45.17, -75.89391]] },
+
+            // RURAL TOWNS & HUBS
+            { category: "rural_towns", name: "Hawkesbury", intersection: "County Rd 17 & Tupper St", lat: 45.6094, lng: -74.6067, polygon: [[45.59, -74.63], [45.62, -74.63], [45.62, -74.57], [45.59, -74.57]] },
+            { category: "rural_towns", name: "Rockland", intersection: "County Rd 17 & Laurier St", lat: 45.5519, lng: -75.2952, polygon: [[45.53, -75.32], [45.57, -75.32], [45.57, -75.27], [45.53, -75.27]] },
+            { category: "rural_towns", name: "Embrun", intersection: "Notre Dame St & St. Guillaume Rd", lat: 45.2755, lng: -75.2785, polygon: [[45.26, -75.30], [45.29, -75.30], [45.29, -75.25], [45.26, -75.25]] },
+            { category: "rural_towns", name: "Casselman", intersection: "County Rd 7 & Highway 417", lat: 45.3110, lng: -75.0860, polygon: [[45.295, -75.105], [45.325, -75.105], [45.325, -75.068], [45.295, -75.068]] },
+            { category: "rural_towns", name: "Cornwall", intersection: "Brookdale Ave & Vincent Massey Dr", lat: 45.0213, lng: -74.7303, polygon: [[45.00, -74.78], [45.05, -74.78], [45.05, -74.70], [45.00, -74.70]] },
+            { category: "rural_towns", name: "Alexandria", intersection: "Main St North & Bishop St", lat: 45.3130, lng: -74.6300, polygon: [[45.30, -74.65], [45.33, -74.65], [45.33, -74.61], [45.30, -74.61]] },
+            { category: "rural_towns", name: "Carleton Place", intersection: "Highway 7 & McNeely Ave", lat: 45.1410, lng: -76.1380, polygon: [[45.125, -76.160], [45.158, -76.160], [45.158, -76.115], [45.125, -76.115]] },
+
+            // MAJOR CORRIDORS
+            { category: "roadways", name: "Highway 417 (The Queensway)", intersection: "Hwy 417 & Nicholas St", lat: 45.4161, lng: -75.6886, polyline: [[45.31, -75.90], [45.35, -75.80], [45.41, -75.72], [45.42, -75.65], [45.40, -75.50]] },
+            { category: "roadways", name: "Hunt Club Road", intersection: "Hunt Club Rd & Bank St", lat: 45.3541, lng: -75.6542, polyline: [[45.33, -75.77], [45.35, -75.68], [45.36, -75.61]] },
+            { category: "roadways", name: "Highway 138 (SDG North-South)", intersection: "Hwy 138 & Hwy 401", lat: 45.0945, lng: -74.7820, polyline: [[45.02, -74.74], [45.15, -74.80], [45.31, -74.63]] }
+        ];
+
+        let currentQuestion = null;
+        let guessMarker = null;
+        let targetMarker = null;
+        let connectLine = null;
+        let boundaryLayer = null;
+        let blankCircleMarkers = [];
+        let userGuessLatLng = null;
+        let isAnswerConfirmed = false;
+        
+        let activePool = [];
+        let totalScoreAccumulator = 0;
+        let totalAnswered = 0;
+        let targetDeckSize = 5;
+        let questionLog = [];
+        let quizActive = false;
+        let blanksActiveSet = [];
+
+        window.onload = function() {
+            setTimeout(function() { map.invalidateSize(); }, 200);
+        };
+
+        function toggleModeUI() {
+            const mode = document.getElementById('mode-select').value;
+            if (mode === 'blanks') {
+                document.getElementById('text-input-container').style.display = 'none';
+                document.getElementById('mc-container').style.display = 'none';
+                document.getElementById('blanks-container').style.display = 'flex';
+                document.getElementById('length-select').style.display = 'none';
+                document.getElementById('score-card').style.display = 'none';
+            } else {
+                document.getElementById('length-select').style.display = 'block';
+                if (quizActive) document.getElementById('score-card').style.display = 'block';
+                if (mode === 'eval') {
+                    document.getElementById('text-input-container').style.display = 'block';
+                    document.getElementById('mc-container').style.display = 'none';
+                    document.getElementById('blanks-container').style.display = 'none';
+                } else if (mode === 'study') {
+                    document.getElementById('text-input-container').style.display = 'none';
+                    document.getElementById('mc-container').style.display = 'none';
+                    document.getElementById('blanks-container').style.display = 'none';
+                } else if (mode === 'mc') {
+                    document.getElementById('text-input-container').style.display = 'none';
+                    document.getElementById('mc-container').style.display = 'grid';
+                    document.getElementById('blanks-container').style.display = 'none';
+                }
+            }
+        }
+
+        function handleActionButton() {
+            const mode = document.getElementById('mode-select').value;
+            if (mode === 'blanks') {
+                startBlanksDrill();
+            } else if (!quizActive) {
+                startQuiz();
+            } else {
+                loadNextQuestion();
+            }
+        }
+
+        function startBlanksDrill() {
+            clearMapLayers();
+            quizActive = true;
+            isAnswerConfirmed = false;
+
+            const cat = document.getElementById('category-select').value;
+            let pool = cat === 'all' ? [...geoData] : geoData.filter(d => d.category === cat);
+            
+            blanksActiveSet = pool.sort(() => Math.random() - 0.5).slice(0, 10);
+            
+            document.getElementById('target-prompt').textContent = 'Full Map Matching Drill';
+            document.getElementById('target-detail').textContent = 'Match map letters (A, B, C...) below.';
+            document.getElementById('action-btn').style.display = 'none';
+            document.getElementById('confirm-btn').style.display = 'block';
+
+            const container = document.getElementById('blanks-container');
+            container.style.display = 'flex';
+            container.innerHTML = '';
+
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let lettersAssigned = blanksActiveSet.map((item, idx) => alphabet[idx]);
+            const shuffledDropdownLetters = [...lettersAssigned].sort(() => Math.random() - 0.5);
+
+            let bounds = [];
+            blanksActiveSet.forEach((item, index) => {
+                const letter = alphabet[index];
+                bounds.push([item.lat, item.lng]);
+
+                let circleIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style='background-color:#1f6beb; color:white; font-weight:bold; border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.4); font-size:0.78rem;'>${letter}</div>`,
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 13]
+                });
+
+                let marker = L.marker([item.lat, item.lng], { icon: circleIcon }).addTo(map)
+                    .bindPopup(`<b>Marker ${letter}</b><br>${item.intersection}`);
+                blankCircleMarkers.push(marker);
+            });
+
+            if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40] });
+
+            const displayRows = [...blanksActiveSet].sort(() => Math.random() - 0.5);
+
+            displayRows.forEach((targetItem) => {
+                let row = document.createElement('div');
+                row.className = 'blank-circle-row';
+                
+                let selectHtml = `<select id="match-select-${CSS.escape(targetItem.name)}" style="margin-top:0; padding:3px 5px; font-size:0.75rem;"><option value="">Select...</option>`;
+                shuffledDropdownLetters.forEach(l => {
+                    selectHtml += `<option value="${l}">Letter ${l}</option>`;
+                });
+                selectHtml += `</select>`;
+
+                row.innerHTML = `<div style="flex:1; font-weight:600; padding-right:4px;">${targetItem.name}</div><div style="width: 105px;">${selectHtml}</div>`;
+                container.appendChild(row);
+            });
+        }
+
+        function startQuiz() {
+            const cat = document.getElementById('category-select').value;
+            let pool = cat === 'all' ? [...geoData] : geoData.filter(d => d.category === cat);
+            
+            activePool = pool.sort(() => Math.random() - 0.5);
+            
+            const lenVal = parseInt(document.getElementById('length-select').value);
+            targetDeckSize = lenVal === 0 ? 9999 : Math.min(lenVal, activePool.length);
+            
+            totalScoreAccumulator = 0;
+            totalAnswered = 0;
+            questionLog = [];
+            quizActive = true;
+            
+            document.getElementById('score').textContent = 0;
+            document.getElementById('score-card').style.display = 'block';
+            document.getElementById('action-btn').textContent = 'Next Question';
+            
+            loadNextQuestion();
+        }
+
+        function loadNextQuestion() {
+            const mode = document.getElementById('mode-select').value;
+            if (mode === 'blanks') {
+                startBlanksDrill();
+                return;
+            }
+
+            if (totalAnswered >= targetDeckSize) {
+                showSummaryModal();
+                return;
+            }
+
+            if (activePool.length === 0) {
+                const cat = document.getElementById('category-select').value;
+                let pool = cat === 'all' ? [...geoData] : geoData.filter(d => d.category === cat);
+                activePool = pool.sort(() => Math.random() - 0.5);
+            }
+
+            currentQuestion = activePool.pop();
+            isAnswerConfirmed = false;
+            userGuessLatLng = null;
+
+            document.getElementById('feedback').style.display = 'none';
+            document.getElementById('confirm-btn').style.display = 'none';
+            document.getElementById('action-btn').style.display = mode === 'mc' ? 'none' : 'block';
+            document.getElementById('hint-display').textContent = '';
+            document.getElementById('user-intersection-input').value = '';
+
+            document.getElementById('target-prompt').textContent = `Locate: ${currentQuestion.name}`;
+
+            if (mode === 'eval') {
+                document.getElementById('target-detail').textContent = 'Drop pin & type intersection.';
+                document.getElementById('text-input-container').style.display = 'block';
+                document.getElementById('mc-container').style.display = 'none';
+                document.getElementById('blanks-container').style.display = 'none';
+            } else if (mode === 'study') {
+                document.getElementById('target-detail').textContent = `Nearest: ${currentQuestion.intersection}`;
+                document.getElementById('text-input-container').style.display = 'none';
+                document.getElementById('mc-container').style.display = 'none';
+                document.getElementById('blanks-container').style.display = 'none';
+            } else if (mode === 'mc') {
+                document.getElementById('target-detail').textContent = 'Select correct intersection:';
+                document.getElementById('text-input-container').style.display = 'none';
+                document.getElementById('blanks-container').style.display = 'none';
+                setupMultipleChoiceOptions();
+            }
+
+            clearMapLayers();
+            setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+
+        function confirmAnswer() {
+            const mode = document.getElementById('mode-select').value;
+            if (isAnswerConfirmed) return;
+
+            if (mode === 'blanks') {
+                checkBlanksAnswer();
+                return;
+            }
+
+            isAnswerConfirmed = true;
+            document.getElementById('confirm-btn').style.display = 'none';
+
+            totalAnswered++;
+            
+            let pinScorePct = 0;
+            let pinDistance = null;
+
+            if (userGuessLatLng) {
+                if (currentQuestion.polygon && isPointInPolygon(userGuessLatLng, currentQuestion.polygon)) {
+                    pinScorePct = 100;
+                    pinDistance = 0;
+                } else {
+                    pinDistance = getDistanceKm(userGuessLatLng.lat, userGuessLatLng.lng, currentQuestion.lat, currentQuestion.lng);
+                    const isRural = (currentQuestion.category === 'rural_towns' || currentQuestion.category === 'roadways');
+                    const idealMax = isRural ? 1.0 : 0.25;
+                    const absoluteMax = isRural ? 5.0 : 2.0;
+
+                    if (pinDistance <= idealMax) {
+                        pinScorePct = 100;
+                    } else if (pinDistance >= absoluteMax) {
+                        pinScorePct = 0;
+                    } else {
+                        pinScorePct = Math.round(100 * (1 - (pinDistance - idealMax) / (absoluteMax - idealMax)));
+                    }
+                }
+            }
+            
+            revealTargetOnMap();
+
+            let textScoreCorrect = true;
+            let userInput = '';
+            if (mode === 'eval') {
+                userInput = document.getElementById('user-intersection-input').value;
+                textScoreCorrect = normalizeString(userInput) === normalizeString(currentQuestion.intersection);
+            }
+
+            let finalRoundScore = mode === 'eval' ? (textScoreCorrect ? pinScorePct : 0) : pinScorePct;
+            totalScoreAccumulator += finalRoundScore;
+
+            questionLog.push({
+                name: currentQuestion.name,
+                standardIntersection: currentQuestion.intersection,
+                userText: userInput,
+                textPassed: textScoreCorrect,
+                pinDistance: pinDistance,
+                scorePct: finalRoundScore
+            });
+
+            const feedbackEl = document.getElementById('feedback');
+            feedbackEl.style.display = 'block';
+            
+            if (finalRoundScore >= 80) feedbackEl.className = 'feedback success';
+            else if (finalRoundScore >= 40) feedbackEl.className = 'feedback warning';
+            else feedbackEl.className = 'feedback error';
+
+            let resultMsg = pinDistance !== null 
+                ? (pinDistance === 0 ? `Inside boundary! <strong>(100%)</strong><br>` : `Distance: <strong>${(pinDistance * 1000).toFixed(0)}m</strong> | Pin: <strong>${pinScorePct}%</strong><br>`)
+                : `No pin placed! (0%)<br>`;
+
+            if (mode === 'eval') {
+                resultMsg += `Text: <strong>${textScoreCorrect ? 'Pass' : 'Fail'}</strong> | ${currentQuestion.intersection}`;
+            }
+
+            feedbackEl.innerHTML = resultMsg;
+            updateRunningAverage();
+        }
+
+        function isPointInPolygon(point, vs) {
+            let x = point.lat, y = point.lng;
+            let inside = false;
+            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                let xi = vs[i][0], yi = vs[i][1];
+                let xj = vs[j][0], yj = vs[j][1];
+                let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function checkBlanksAnswer() {
+            isAnswerConfirmed = true;
+            document.getElementById('confirm-btn').style.display = 'none';
+
+            let correctCount = 0;
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            questionLog = [];
+
+            blanksActiveSet.forEach((item, index) => {
+                const correctLetter = alphabet[index];
+                const selectEl = document.getElementById(`match-select-${CSS.escape(item.name)}`);
+                const userLetter = selectEl ? selectEl.value : '';
+                const isMatch = userLetter === correctLetter;
+
+                if (isMatch) correctCount++;
+
+                questionLog.push({
+                    name: item.name,
+                    standardIntersection: `Letter ${correctLetter}: ${item.intersection}`,
+                    scorePct: isMatch ? 100 : 0,
+                    pinDistance: null
+                });
+
+                blankCircleMarkers[index].bindPopup(`<b>Letter ${correctLetter}: ${item.name}</b><br>${item.intersection}`).openPopup();
+            });
+
+            const finalPct = Math.round((correctCount / blanksActiveSet.length) * 100);
+            totalScoreAccumulator = finalPct;
+            totalAnswered = 1;
+
+            const feedbackEl = document.getElementById('feedback');
+            feedbackEl.style.display = 'block';
+            feedbackEl.className = finalPct >= 75 ? 'feedback success' : 'feedback error';
+            feedbackEl.innerHTML = `Matched <strong>${correctCount}/${blanksActiveSet.length}</strong> correct (${finalPct}%). See map popups!`;
+
+            document.getElementById('score').textContent = finalPct;
+            document.getElementById('score-card').style.display = 'block';
+            document.getElementById('action-btn').textContent = 'Start New Drill';
+            document.getElementById('action-btn').style.display = 'block';
+
+            if (finalPct < 90) {
+                setTimeout(showSummaryModal, 1500);
+            }
+        }
+
+        function setupMultipleChoiceOptions() {
+            const container = document.getElementById('mc-container');
+            container.style.display = 'grid';
+            container.innerHTML = '';
+
+            let distractors = geoData.filter(d => d.intersection !== currentQuestion.intersection)
+                                     .sort(() => Math.random() - 0.5)
+                                     .slice(0, 3)
+                                     .map(d => d.intersection);
+
+            let options = [...distractors, currentQuestion.intersection].sort(() => Math.random() - 0.5);
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'mc-option';
+                btn.textContent = opt;
+                btn.onclick = () => checkMultipleChoice(opt);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkMultipleChoice(selectedOption) {
+            if (isAnswerConfirmed) return;
+            isAnswerConfirmed = true;
+            totalAnswered++;
+
+            const isCorrect = selectedOption === currentQuestion.intersection;
+            const roundPct = isCorrect ? 100 : 0;
+            totalScoreAccumulator += roundPct;
+
+            questionLog.push({
+                name: currentQuestion.name,
+                standardIntersection: currentQuestion.intersection,
+                userText: selectedOption,
+                textPassed: isCorrect,
+                pinDistance: null,
+                scorePct: roundPct
+            });
+
+            revealTargetOnMap();
+
+            const feedbackEl = document.getElementById('feedback');
+            feedbackEl.style.display = 'block';
+            feedbackEl.className = isCorrect ? 'feedback success' : 'feedback error';
+            feedbackEl.innerHTML = isCorrect 
+                ? `<strong>Correct! (100%)</strong>`
+                : `<strong>Incorrect!</strong> ${currentQuestion.intersection}`;
+
+            updateRunningAverage();
+            document.getElementById('action-btn').style.display = 'block';
+        }
+
+        function revealHint() {
+            if (!currentQuestion) return;
+            const parts = currentQuestion.intersection.split('&');
+            const hintText = parts.map(street => {
+                return street.trim().split(' ').map(word => word[0] + '_'.repeat(word.length - 1)).join(' ');
+            }).join(' & ');
+
+            document.getElementById('hint-display').textContent = `Hint: ${hintText}`;
+        }
+
+        map.on('click', function(e) {
+            const mode = document.getElementById('mode-select').value;
+            if (!currentQuestion || isAnswerConfirmed || mode === 'mc' || mode === 'blanks') return;
+
+            userGuessLatLng = e.latlng;
+
+            if (guessMarker) {
+                guessMarker.setLatLng(userGuessLatLng);
+            } else {
+                guessMarker = L.circleMarker(userGuessLatLng, {
+                    radius: 8, fillColor: '#1f6beb', color: '#ffffff', weight: 2, opacity: 1, fillOpacity: 0.9
+                }).addTo(map).bindPopup("Your Guess").openPopup();
+            }
+
+            document.getElementById('confirm-btn').style.display = 'block';
+        });
+
+        function updateRunningAverage() {
+            const avg = Math.round(totalScoreAccumulator / totalAnswered);
+            document.getElementById('score').textContent = avg;
+        }
+
+        function showSummaryModal() {
+            quizActive = false;
+            const finalAvg = Math.round(totalScoreAccumulator / totalAnswered) || 0;
+            document.getElementById('final-percentage').textContent = `${finalAvg}%`;
+
+            const container = document.getElementById('review-list-container');
+            container.innerHTML = '';
+
+            let missedCount = 0;
+            questionLog.forEach(q => {
+                if (q.scorePct < 90) {
+                    missedCount++;
+                    const item = document.createElement('div');
+                    item.className = 'review-item';
+                    
+                    let distText = q.pinDistance != null ? `${(q.pinDistance * 1000).toFixed(0)}m error` : '';
+                    let details = distText ? `<span style="color:#8b949e;">Pin: ${distText}</span><br>` : '';
+                    details += `Standard: <strong>${q.standardIntersection}</strong>`;
+
+                    item.innerHTML = `<strong>${q.name}</strong> (${q.scorePct}%)<br>${details}`;
+                    container.appendChild(item);
+                }
+            });
+
+            if (missedCount === 0) {
+                container.innerHTML = '<div style="color:#56d364; padding:8px; font-weight:600;">Flawless run! 90%+ on all locations.</div>';
+            }
+
+            document.getElementById('summary-modal').style.display = 'flex';
+        }
+
+        function closeSummaryModal() {
+            document.getElementById('summary-modal').style.display = 'none';
+            document.getElementById('action-btn').textContent = 'Start Quiz';
+            quizActive = false;
+        }
+
+        function revealTargetOnMap() {
+            targetMarker = L.circleMarker([currentQuestion.lat, currentQuestion.lng], {
+                radius: 9, fillColor: '#2ea043', color: '#ffffff', weight: 2, opacity: 1, fillOpacity: 0.9
+            }).addTo(map).bindPopup(`<b>${currentQuestion.name}</b><br>${currentQuestion.intersection}`).openPopup();
+
+            if (userGuessLatLng) {
+                connectLine = L.polyline([userGuessLatLng, [currentQuestion.lat, currentQuestion.lng]], {
+                    color: '#f85149', weight: 2.5, dashArray: '4, 8'
+                }).addTo(map);
+
+                const bounds = L.latLngBounds([userGuessLatLng, [currentQuestion.lat, currentQuestion.lng]]);
+                map.fitBounds(bounds, { padding: [40, 40] });
+            }
+
+            if (currentQuestion.polygon) {
+                boundaryLayer = L.polygon(currentQuestion.polygon, { color: '#1f6beb', weight: 2.5, fillColor: '#388bfd', fillOpacity: 0.3 }).addTo(map);
+                map.fitBounds(boundaryLayer.getBounds(), { padding: [30, 30] });
+            } else if (currentQuestion.polyline) {
+                boundaryLayer = L.polyline(currentQuestion.polyline, { color: '#d97706', weight: 4, opacity: 0.85 }).addTo(map);
+                map.fitBounds(boundaryLayer.getBounds(), { padding: [30, 30] });
+            }
+        }
+
+        function normalizeString(str) {
+            return str.toLowerCase()
+                .replace(/\bstreet\b/g, 'st').replace(/\broad\b/g, 'rd').replace(/\bavenue\b/g, 'ave')
+                .replace(/\bboulevard\b/g, 'blvd').replace(/\bdrive\b/g, 'dr').replace(/\bparkway\b/g, 'pkwy')
+                .replace(/and/g, '&').replace(/[^a-z0-9&]/g, '').trim();
+        }
+
+        function clearMapLayers() {
+            if (guessMarker) map.removeLayer(guessMarker);
+            if (targetMarker) map.removeLayer(targetMarker);
+            if (connectLine) map.removeLayer(connectLine);
+            if (boundaryLayer) map.removeLayer(boundaryLayer);
+            blankCircleMarkers.forEach(m => map.removeLayer(m));
+            blankCircleMarkers = [];
+            guessMarker = null; targetMarker = null; connectLine = null; boundaryLayer = null;
+        }
+
+        function zoomRegion(region) {
+            switch(region) {
+                case 'ottawa': map.setView([45.35, -75.70], 11); break;
+                case 'pr': map.setView([45.52, -75.10], 10); break;
+                case 'sdg': map.setView([45.05, -74.85], 10); break;
+                case 'all': default: map.setView([45.35, -75.30], 9); break;
+            }
+        }
+
+        function getDistanceKm(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        }
+    </script>
+</body>
+</html>
